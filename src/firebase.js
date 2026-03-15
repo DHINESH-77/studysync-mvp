@@ -4,13 +4,14 @@ import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD_JGA3DluAhE09zHxaGokicITV2IbsGXg",
+  apiKey: "AIzaSyAyXrDRquy3skfeYtqqmCRA-jkJLUzb9pE",
   authDomain: "studysync-mvp-techsprint.firebaseapp.com",
   databaseURL: "https://studysync-mvp-techsprint-default-rtdb.firebaseio.com",
   projectId: "studysync-mvp-techsprint",
   storageBucket: "studysync-mvp-techsprint.firebasestorage.app",
-  messagingSenderId: "557002966496",
-  appId: "1:557002966496:web:d8cd5f2b088a9df5bf5785"
+  messagingSenderId: "367280967382",
+  appId: "1:367280967382:web:abfb1bfcc222e4c2957597",
+  measurementId: "G-6MBX221TQM"
 };
 
 const app = initializeApp(firebaseConfig);
