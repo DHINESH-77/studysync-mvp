@@ -46,31 +46,77 @@ const SubjectPage = () => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Temporary: Show file info without uploading
-    alert(`File selected: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nFile upload temporarily disabled.\nChat and other features work normally.`);
-    event.target.value = '';
+    const uploadType = fileInputRef.current.getAttribute('data-type') || activeTab;
+
+    setUploading(true);
+
+    // Prepare FormData for Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'studysync_preset'); // Our new Cloudinary unsigned preset
+
+    try {
+      // 1. Upload to Cloudinary Free Tier ('auto' allows docs, pdfs, images)
+      const response = await fetch('https://api.cloudinary.com/v1_1/dz7lxhcuw/auto/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.secure_url) {
+        // 2. Save the returned Cloudinary URL to Firebase Database
+        const newFileObj = {
+          name: file.name,
+          size: file.size,
+          downloadURL: data.secure_url,
+          uploadedBy: user?.displayName || 'Unknown User',
+          uploadedAt: new Date().toISOString()
+        };
+
+        const dbFileRef = dbRef(database, `materials/${deptId}/${subjectId}/${uploadType}`);
+        await push(dbFileRef, newFileObj);
+
+        alert('File uploaded successfully!');
+      } else {
+        throw new Error(data.error?.message || 'Cloudinary upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert(`Upload failed: ${error.message}`);
+    } finally {
+      setUploading(false);
+      event.target.value = ''; // Reset file input
+    }
   };
 
   const handleDownload = (downloadURL, fileName) => {
+    // Cloudinary by default blocks viewing PDFs inline for security (Error 401).
+    // We can bypass this by injecting 'fl_attachment' into the URL to force a direct download!
+    let finalUrl = downloadURL;
+    if (finalUrl.includes('/upload/')) {
+      finalUrl = finalUrl.replace('/upload/', '/upload/fl_attachment/');
+    }
+    
+    // Create an invisible link to trigger the true download
     const link = document.createElement('a');
-    link.href = downloadURL;
+    link.href = finalUrl;
     link.download = fileName;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   const handleDelete = async (type, fileId, storagePath) => {
     if (!window.confirm('Are you sure you want to delete this file?')) return;
     
     try {
-      // Delete from Storage
-      const fileRef = storageRef(storage, storagePath);
-      await deleteObject(fileRef);
-      
-      // Delete from Database
+      // With this free-tier Cloudinary setup, we only delete the reference from the Database
+      // Real deletion from Cloudinary would require a backend signature
       const dbFileRef = dbRef(database, `materials/${deptId}/${subjectId}/${type}/${fileId}`);
       await remove(dbFileRef);
       
-      alert('File deleted successfully!');
+      alert('File removed successfully!');
     } catch (error) {
       console.error('Delete error:', error);
       alert('Delete failed. Please try again.');
